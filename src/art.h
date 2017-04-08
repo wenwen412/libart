@@ -29,6 +29,7 @@ typedef int(*art_callback)(void *data, const unsigned char *key, uint32_t key_le
 /**
  * This struct is included as part
  * of all the various node sizes
+ * Can be used to store prefix info
  */
 typedef struct {
     uint8_t type;

@@ -15,6 +15,12 @@
 
 /**
  * Macros to manipulate pointer tags
+ * Set last bit to 1 to identify a pointer to a LEAF
+ * *********************************************************************
+ * uintptr_t： an unsigned integer type with the property that any valid
+ *  pointer to void can be converted to this type, then converted back
+ *  to pointer to void, and the result will compare equal to the 
+ * original pointer
  */
 #define IS_LEAF(x) (((uintptr_t)x & 1))
 #define SET_LEAF(x) ((void*)((uintptr_t)x | 1))
@@ -362,6 +368,16 @@ static art_leaf* make_leaf(const unsigned char *key, int key_len, void *value) {
     return l;
 }
 
+/*
+ * l1:abcdefg hkkfvk
+ * l2:ssddefg hkklva
+ * 			 ^
+ * 			 |
+ * 			depth
+ * 
+ * compare start at depth, find common prefix
+ * return the length of common prefix
+ * */
 static int longest_common_prefix(art_leaf *l1, art_leaf *l2, int depth) {
     int max_cmp = min(l1->key_len, l2->key_len) - depth;
     int idx;
@@ -393,7 +409,7 @@ static void add_child48(art_node48 *n, art_node **ref, unsigned char c, void *ch
         n->n.num_children++;
     } else {
         art_node256 *new_node = (art_node256*)alloc_node(NODE256);
-        for (int i=0;i<256;i++) {
+        for (int i=0;i<256;i++) {	
             if (n->keys[i]) {
                 new_node->children[i] = n->children[n->keys[i] - 1];
             }
@@ -445,6 +461,7 @@ static void add_child16(art_node16 *n, art_node **ref, unsigned char c, void *ch
         // Check if less than any
         unsigned idx;
         if (bitfield) {
+			// determines the count of trailing zero in the binary representation of a number.
             idx = __builtin_ctz(bitfield);
             memmove(n->keys+idx+1,n->keys+idx,n->n.num_children-idx);
             memmove(n->children+idx+1,n->children+idx,
@@ -473,6 +490,7 @@ static void add_child16(art_node16 *n, art_node **ref, unsigned char c, void *ch
     }
 }
 
+/*keys are sorted*/
 static void add_child4(art_node4 *n, art_node **ref, unsigned char c, void *child) {
     if (n->n.num_children < 4) {
         int idx;
@@ -481,6 +499,8 @@ static void add_child4(art_node4 *n, art_node **ref, unsigned char c, void *chil
         }
 
         // Shift to make room
+        //memmove()) is a safe version of memcpy()
+        //shifting both keys and pointers to the right
         memmove(n->keys+idx+1, n->keys+idx, n->n.num_children - idx);
         memmove(n->children+idx+1, n->children+idx,
                 (n->n.num_children - idx)*sizeof(void*));
@@ -544,6 +564,14 @@ static int prefix_mismatch(const art_node *n, const unsigned char *key, int key_
     return idx;
 }
 
+/* n: the tree the are insert to
+ * ref: the tree node that has index to the inserted node n
+ * key, key_len, value: you know it
+ * depth: current depth
+ * old: a flag incicates we find an existing leaf and update it*/
+
+
+
 static void* recursive_insert(art_node *n, art_node **ref, const unsigned char *key, int key_len, void *value, int depth, int *old) {
     // If we are at a NULL node, inject a leaf
     if (!n) {
@@ -555,7 +583,7 @@ static void* recursive_insert(art_node *n, art_node **ref, const unsigned char *
     if (IS_LEAF(n)) {
         art_leaf *l = LEAF_RAW(n);
 
-        // Check if we are updating an existing value
+        // Check if we are updating an existing value, depth not used
         if (!leaf_matches(l, key, key_len, depth)) {
             *old = 1;
             void *old_val = l->value;
@@ -571,6 +599,7 @@ static void* recursive_insert(art_node *n, art_node **ref, const unsigned char *
 
         // Determine longest prefix
         int longest_prefix = longest_common_prefix(l, l2, depth);
+        //In a compressed node, partial_len is set to be prefix length
         new_node->n.partial_len = longest_prefix;
         memcpy(new_node->n.partial, key+depth, min(MAX_PREFIX_LEN, longest_prefix));
         // Add the leafs to the new node4
