@@ -11,6 +11,21 @@ extern "C" {
 #define NODE48  3
 #define NODE256 4
 
+#define INSLOG 0
+#define DELLOG 1
+
+/**
+ * define several states
+ * UNATOMIC:Initial states
+ * UNCOMMIT: log change has benn persistent
+ * COMMIY: leaf node has been added to the list, it's safe
+ */
+#define ALLOCATED 0
+#define INITILIZED 1
+#define INLIST 2
+#define INVALID 3
+#define REMOVED 4
+
 #define MAX_PREFIX_LEN 10
 
 #if defined(__GNUC__) && !defined(__clang__)
@@ -79,16 +94,36 @@ typedef struct {
  * of arbitrary size, as they include the key.
  */
 typedef struct {
+	art_leaf *next;
+	art_leaf *prev; 
     void *value;
+    //add a status to indicates the status of a leaf node
+    //0
+    //1
+    uint32_t status;	
     uint32_t key_len;
     unsigned char key[];
 } art_leaf;
+
+
+/**
+ * Wen Pan
+ *log structure for purpose of atomicity & preventing memory leak 
+ * Types are INSLOG & DELLOG*/
+typedef struct {
+	art_leaf *leaf;
+	art_log *next;
+}art_log;
+
+
 
 /**
  * Main struct, points to root.
  */
 typedef struct {
     art_node *root;
+    art_leaf *leaf_head;
+    art_log *log_head;
     uint64_t size;
 } art_tree;
 
