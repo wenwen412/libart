@@ -3,7 +3,6 @@
 #include <strings.h>
 #include <stdio.h>
 #include <assert.h>
-#include <asm/cpufeature.h>
 #include "art.h"
 
 #ifdef __i386__
@@ -62,22 +61,20 @@ static inline void PERSISTENT_BARRIER(void)
 }
 
 
+/***
 static inline bool arch_has_clwb(void)
 {
 	return static_cpu_has(X86_FEATURE_CLWB);
-}
-static inline bool arch_has_clwb(void)
-{
-	return static_cpu_has(X86_FEATURE_CLWB);
-}
+}*/
 
 static inline void persistent(void *buf, uint32_t len, bool fence)
 {
 	uint32_t i;
 	len = len + ((unsigned long)(buf) & (CACHELINE_SIZE - 1));
 	
-	if (arch_has_clwb())
-		support_clwb = 1;
+	//if (arch_has_clwb())
+		//support_clwb = 1;
+	int support_clwb = 0;
 		
 	if (support_clwb) {
 		for (i = 0; i < len; i += CACHELINE_SIZE)
