@@ -34,7 +34,7 @@ void* pmalloc (size_t size){
 	return malloc(size);
 }
 
-void* pfree (void *ptr, size_t size){
+void pfree (void *ptr, size_t size){
 	return free(ptr);
 }
 
@@ -1026,14 +1026,19 @@ static art_leaf* recursive_delete(art_node *n, art_node **ref, const unsigned ch
  * Considerations:
  * 	1. Consistency
  * 	2. Recover
+ * 
+ * A special case： leaf is the header
  * */
-int remove_leaf_from_list(art_leaf *l){
+int remove_leaf_from_list(art_tree *t， art_leaf *l){
+	
+
 	if(!l)
 		return 1;
 	art_leaf *prev, *next;
 	
 	prev = l->prev;
 	next = l->next;
+	
 	prev->next = next;
 	next->prev = prev;
 	persistent(&(prev->next), sizeof(void *),0);
@@ -1045,6 +1050,9 @@ int remove_leaf_from_list(art_leaf *l){
 	l->prev = NULL;
 	l->next = NULL;
 	//persistent(l, 2 * sizeof(void *),0);
+	
+	if(t->leaf_head == l)
+		t->leaf_head = l->next;
 }
 
 void *delete_log(art_tree *t,const unsigned char *key){

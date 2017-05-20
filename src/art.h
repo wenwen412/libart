@@ -93,7 +93,9 @@ typedef struct {
  * Represents a leaf. These are
  * of arbitrary size, as they include the key.
  */
-typedef struct {
+typedef struct art_leaf art_leaf;
+ 
+struct art_leaf{
 	art_leaf *next;
 	art_leaf *prev; 
     void *value;
@@ -103,17 +105,18 @@ typedef struct {
     uint32_t status;	
     uint32_t key_len;
     unsigned char key[];
-} art_leaf;
+};
 
 
 /**
  * Wen Pan
  *log structure for purpose of atomicity & preventing memory leak 
  * Types are INSLOG & DELLOG*/
-typedef struct {
+typedef struct art_log art_log;
+struct art_log {
 	art_leaf *leaf;
 	art_log *next;
-}art_log;
+};
 
 
 
@@ -183,7 +186,7 @@ void* art_insert(art_tree *t, const unsigned char *key, int key_len, void *value
  * @return NULL if the item was not found, otherwise
  * the value pointer is returned.
  */
-void* art_delete(art_tree *t, const unsigned char *key, int key_len);
+int art_delete(art_tree *t, const unsigned char *key, int key_len);
 
 /**
  * Searches for a value in the ART tree
