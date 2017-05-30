@@ -8,7 +8,7 @@ env_with_err = Environment(
 if "CC" in os.environ:
 	env_with_err["CC"] = os.environ["CC"]
 if "CCFLAGS" not in os.environ:
-	env_with_err["CCFLAGS"] = '-g -std=c99 -D_GNU_SOURCE -Wall -Werror -O3'
+	env_with_err["CCFLAGS"] = '-g -D_GNU_SOURCE -Wall -Werror -O3'
 if "SHLINKFLAGS" not in os.environ:
 	env_with_err['SHLINKFLAGS'] = '-shared'
 #print "CCCOM is:", env_with_err.subst('$CCCOM')
