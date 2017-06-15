@@ -94,7 +94,6 @@ typedef struct {
  * of arbitrary size, as they include the key.
  */
 typedef struct art_leaf art_leaf;
- 
 struct art_leaf{
 	art_leaf *next;
 	art_leaf *prev; 
