@@ -123,12 +123,23 @@ static art_node* alloc_node(uint8_t type) {
 /**
  * Initializes an ART tree
  * @return 0 on success.
+ * fixme: log_head point to a log type with no data 
  */
 int art_tree_init(art_tree *t) {
     t->root = NULL;
     t->leaf_head = NULL;
-    t->log_head = NULL;
+    
+    art_log * head;
+    head = (art_log *)malloc(sizeof(art_log));
+    if (head==NULL)
+		return 0;
+	head->next = NULL;
+	head->leaf = NULL;
+	
+    t->log_head = head;
+    
     t->size = 0;
+    printf("init return 0");
     return 0;
 }
 
@@ -193,8 +204,22 @@ static void destroy_node(art_node *n) {
  * Destroys an ART tree
  * @return 0 on success.
  */
+
+int destory_log(art_log *head)
+{
+	art_log *node, *tmp;
+	node = head;
+	while (node != NULL)
+	{	tmp = node;
+		node = node->next;
+		pfree(node, sizeof(art_log));
+	}
+	return 0;
+}
 int art_tree_destroy(art_tree *t) {
     destroy_node(t->root);
+    t->leaf_head = NULL;
+    destory_log(t->log_head);
     return 0;
 }
 
@@ -453,12 +478,32 @@ void add_log(art_log **log_head, art_leaf *l){
     art_log* new_log;
 	new_log = pmalloc(sizeof(art_log));
 	new_log->leaf = l; 
-	new_log->next = *log_head;
+	new_log->next = (*log_head)->next;
 	persistent(new_log, sizeof(art_log),0);
 	
-	*log_head = new_log;
+	(*log_head)->next = new_log;
 	persistent(*log_head, sizeof(void*),1);
 }
+
+
+/**
+ * invalid a log 
+ * Do not delete it because we can save it for future use
+ */
+int invalid_log(art_log **log_head,art_leaf * leaf)
+{
+    art_log *p, *pre;                   //pre为前驱结点，p为查找的结点。 
+    p = (*log_head)->next;
+    while(p->leaf != leaf)              //查找值为x的元素 
+    {   
+        pre = p; 
+        p = p->next;
+    }
+    pre->next = p->next;          //删除操作，将其前驱next指向其后继。 
+    pfree(p, sizeof(art_log));
+    return 0;
+} 
+
 
 
 /**
@@ -694,42 +739,17 @@ static void linklist_insert(art_log *log_head, art_leaf **leaf_header, art_leaf 
 	node->next = *leaf_header;
 	node->prev = NULL;
 	persistent(node, sizeof(art_leaf),0);
-
-	(*leaf_header)->prev = node;
-	persistent((*leaf_header)->prev, sizeof(void*),0);
+	
+	if (*leaf_header != NULL)
+	{
+		(*leaf_header)->prev = node;
+		persistent((*leaf_header)->prev, sizeof(void*),0);
+	}
 	
 	*leaf_header = node;
 	persistent(*leaf_header, sizeof(art_leaf),0);
-	//log_head->status = COMMIT;
-	//persistent(log_header, size0f(log_header),1);
 	node->status = INLIST;
 	persistent(&(node->status),sizeof(uint32_t),1);
-}
-
-
-
-
-/**
- * invalid a log 
- * Do not delete it because we can save it for future use
- */
-int invalid_log(art_log **log_head, art_leaf * leaf){
-	art_log *pre, *tmp;
-	pre = *log_head;
-	tmp = *log_head;
-	while(tmp != NULL)
-	{
-		if(tmp->leaf == leaf)
-		{
-			pre ->next = tmp->next;
-			pfree(tmp, sizeof(art_log));
-			return 0;
-		}
-		pre = tmp;
-		tmp = tmp->next;
-			
-	}
-	return 1;
 }
 
 
@@ -749,8 +769,8 @@ static void* recursive_insert(art_tree *t, art_node *n, art_node **ref,
     art_node *tmp;
     if (!n) {
         tmp = (art_node*)SET_LEAF(make_leaf(log_header, key, key_len, value));
-        //*leaf_header = LEAF_RAW (*ref); 
-         //fixme: need to prevent memory leak
+        // leaf_header = LEAF_RAW (*ref); 
+         // fixme: need to prevent memory leak
         linklist_insert(*log_header, leaf_header, LEAF_RAW (*ref));
         *ref = tmp;
         //set the log invalid; we don't delete it immedially for future use
@@ -770,7 +790,7 @@ static void* recursive_insert(art_tree *t, art_node *n, art_node **ref,
 			*old = 1;
 			art_delete(t, key, key_len);
 			art_insert(t, key, key_len, value);
-            return xxxx;
+            return NULL;
             /** replaced by p-consistency code
             *old = 1;
             void *old_val = l->value;
